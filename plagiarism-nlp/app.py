@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from detect import detect_plagiarism
+from detect import detect_plagiarism, detect_plagiarism_with_web
 import uuid
 
 app = Flask(__name__)
@@ -10,18 +10,24 @@ CORS(app)
 def upload():
     if 'file' not in request.files:
         return jsonify({"status": "error", "message": "No file uploaded"}), 400
-    
+
     file = request.files['file']
-    
+
     if file.filename == '':
         return jsonify({"status": "error", "message": "Empty filename"}), 400
 
     # Read the text from the file
     text = file.read().decode('utf-8', errors='ignore')
-    
+
+    # Check if web mode is requested (default: web)
+    mode = request.args.get('mode', 'web')
+
     # Run plagiarism detection
-    result = detect_plagiarism(text)
-    
+    if mode == 'web':
+        result = detect_plagiarism_with_web(text)
+    else:
+        result = detect_plagiarism(text)
+
     # Add extra info to result
     submission_id = str(uuid.uuid4())[:8]
     result['submission_id'] = submission_id

@@ -1,0 +1,6 @@
+flask
+flask-cors
+sentence-transformers
+ddgs
+beautifulsoup4
+requests

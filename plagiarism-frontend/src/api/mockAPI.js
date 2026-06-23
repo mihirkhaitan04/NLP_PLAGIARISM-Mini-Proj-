@@ -2,10 +2,10 @@ import axios from "axios";
 
 const BASE_URL = "http://localhost:8000";
 
-export const uploadDocument = async (file) => {
+export const uploadDocument = async (file, mode = "web") => {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await axios.post(`${BASE_URL}/api/upload`, formData);
+  const response = await axios.post(`${BASE_URL}/api/upload?mode=${mode}`, formData);
   return response.data;
 };
 
