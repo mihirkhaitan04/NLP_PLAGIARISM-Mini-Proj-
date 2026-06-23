@@ -12,6 +12,7 @@ Think of it as: A sophisticated document analysis suite with an AI-powered detec
 This tool is designed to automate the process of analyzing text and PDFs for plagiarism. Key features include:
 
 **1. Advanced AI Detection (Pillar 1)**
+* **Live Internet Scraping:** Dynamically searches the web via DuckDuckGo and scrapes live articles to cross-reference against the entire public internet, not just a static database.
 * **Semantic Matching:** Uses the `all-MiniLM-L6-v2` Sentence Transformer model to understand the *meaning* of text, not just exact word matches.
 * **Paraphrase Detection:** Effectively catches content that has been rewritten or reworded to hide plagiarism.
 * **Confidence Scoring:** Provides percentage scores indicating the likelihood of plagiarized and paraphrased content.
@@ -23,6 +24,8 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 
 **3. Modern Frontend Dashboard (Pillar 3)**
 * **React & Vite:** A lightning-fast, component-based user interface for seamless interaction.
+* **Scan Modes:** Allows users to easily toggle between a "Deep Web Scan" and a "Fast Local Scan".
+* **Source Attribution:** Dynamically renders clickable links directly to the plagiarized source website.
 * **Tailwind CSS:** Beautiful, responsive design with support for modern UI paradigms.
 
 ---
