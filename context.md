@@ -29,8 +29,20 @@ While larger models (like BERT-base or RoBERTa) offer marginally higher accuracy
 * **Memory Management:** PyMuPDF (`fitz`) is utilized for PDF extraction due to its C-level bindings, making it significantly faster and more memory-efficient than pure-Python alternatives like `PyPDF2`.
 * **Stateless Processing:** The API routes are stateless. The AI model is loaded into memory exactly once at application startup (singleton pattern) to eliminate cold-start latency during inference requests.
 
-## 5. Strategic Roadmap & Scalability
-To transition this architecture to handle enterprise-level traffic, the following upgrades are conceptually mapped:
-1. **Distributed Task Queues:** Implementing **Celery** with a **Redis** broker. When a user uploads a 500-page manuscript, the HTTP request should return a `202 Accepted` immediately, delegating the vector inference to background worker nodes.
-2. **Vector Databases (faiss / Pinecone):** As the reference database grows from a few sentences to millions of articles, $O(N)$ linear scanning becomes a bottleneck. Integrating a dedicated vector database utilizing Approximate Nearest Neighbor (ANN) algorithms (like HNSW) will reduce search times from seconds to milliseconds.
-3. **Live Web Scraping:** Integrating a web-crawling heuristic to dynamically pull top Google Search results for the inputted text, converting the live internet into the reference database in real-time.
+## 5. Strategic Roadmap & Future Enhancements
+To transition this architecture to handle enterprise-level traffic and provide a world-class user experience, the following upgrades are conceptually mapped into our roadmap:
+
+### 5.1 AI & NLP Enhancements
+* **Live Internet Scraping:** Transitioning from a static reference database to a dynamic web-crawling heuristic. The engine will query search engines (e.g., DuckDuckGo API) in real-time to scrape live content and compare vector embeddings against the entire public internet.
+* **AI-Generated Content Detection:** Integrating secondary classification models (e.g., RoBERTa) to calculate the probabilistic likelihood that the submitted text was authored by an LLM (ChatGPT/Claude) versus a human.
+* **Multi-Language Support:** Upgrading the `SentenceTransformer` to a cross-lingual embedding model to detect translated plagiarism (e.g., translating a Spanish academic paper to English and submitting it as original work).
+
+### 5.2 Frontend & User Experience
+* **Side-by-Side Diff Viewer:** Implementing a GitHub-style split-screen interface using React. This will display the user's uploaded text alongside the source material, visually highlighting the exact overlapping vectors in red.
+* **Downloadable PDF Reports:** Allowing users to export comprehensive, mathematically-backed plagiarism reports (including confidence charts and flagged text) directly from the React frontend.
+* **Dynamic Data Visualization:** Utilizing libraries like `Recharts` to build an analytical dashboard, featuring radial progress bars for "Originality Score" and radar charts breaking down textual metrics.
+
+### 5.3 Architecture & Infrastructure
+* **One-Click Dockerization:** Containerizing the entire stack (Frontend, FastAPI Backend, NLP Engine, and PostgreSQL) via `docker-compose`. This ensures environment parity and allows the entire microservices architecture to be spun up with a single command.
+* **User Authentication:** Implementing JWT-based stateless authentication. This enables multi-tenant capabilities where users can maintain private dashboards and historical submission records safely.
+* **Asynchronous Task Queue:** Implementing **Celery** with a **Redis** broker. When a user uploads a massive document, the HTTP request returns a `202 Accepted` immediately, delegating the heavy vector inference to background worker nodes while pushing real-time progress updates to the frontend via WebSockets.
