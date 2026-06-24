@@ -99,6 +99,40 @@ function Results() {
         </div>
       )}
 
+      {/* Forensic Stylometry Tribunal Panel */}
+      {result.tribunal && result.tribunal.prosecutor && (
+        <div style={{
+          marginTop: "25px", padding: "20px", borderRadius: "12px",
+          background: "#f4f4f9", border: "1px solid #dcdce6"
+        }}>
+          <h3 style={{ margin: "0 0 15px 0", color: "#1a1a2e" }}>⚖️ Forensic Stylometry Tribunal (LangGraph + Gemini)</h3>
+          
+          <div style={{ display: "flex", gap: "20px", flexDirection: "column" }}>
+            {/* Prosecutor */}
+            <div style={{ padding: "15px", background: "#fff0f2", borderLeft: "5px solid #e94560", borderRadius: "8px" }}>
+              <div style={{ fontWeight: "bold", color: "#e94560", marginBottom: "8px" }}>Prosecutor's Argument (Plagiarism/AI Match)</div>
+              <div style={{ fontSize: "14px", color: "#333", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>{result.tribunal.prosecutor}</div>
+            </div>
+
+            {/* Defense */}
+            <div style={{ padding: "15px", background: "#f0f4ff", borderLeft: "5px solid #1a73e8", borderRadius: "8px" }}>
+              <div style={{ fontWeight: "bold", color: "#1a73e8", marginBottom: "8px" }}>Defense's Argument (Author Match)</div>
+              <div style={{ fontSize: "14px", color: "#333", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>{result.tribunal.defense}</div>
+            </div>
+
+            {/* Judge's Verdict */}
+            <div style={{ padding: "15px", background: "#fff8ee", borderLeft: "5px solid #f5a623", borderRadius: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <div style={{ fontWeight: "bold", color: "#f5a623" }}>Judge's Final Verdict</div>
+                <div style={{ fontWeight: "bold", color: "#f5a623", fontSize: "18px" }}>Match Score: {result.tribunal.score}%</div>
+              </div>
+              <div style={{ fontSize: "14px", color: "#333", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>{result.tribunal.verdict}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Flagged Sections */}
       <h2 style={{ marginTop: "40px", color: "#1a1a2e" }}>Flagged Sections</h2>
       {result.flagged_sections.length === 0 && (

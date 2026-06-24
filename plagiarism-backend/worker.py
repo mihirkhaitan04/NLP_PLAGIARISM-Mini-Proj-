@@ -34,12 +34,23 @@ def process_plagiarism_task(self, submission_id: str, filename: str, raw_text: s
     
     # Import here to avoid heavy AI models loading before the worker actually needs them
     from detect import detect_plagiarism_with_web, detect_plagiarism
-    from db import save_result
+    from db import save_result, get_recent_texts
+    from tribunal import run_tribunal
     
     if mode == "web":
         result = detect_plagiarism_with_web(raw_text)
     else:
         result = detect_plagiarism(raw_text)
+        
+    print(f"[Celery] Fetching history for {submission_id} tribunal...")
+    historical_texts = get_recent_texts(limit=3)
+    print(f"[Celery] Running LangGraph Tribunal for {submission_id}...")
+    try:
+        tribunal_result = run_tribunal(raw_text, historical_texts)
+        result["tribunal"] = tribunal_result
+    except Exception as e:
+        print(f"[Celery] Tribunal failed: {e}")
+        result["tribunal"] = None
         
     result["submission_id"] = submission_id
     result["filename"] = filename

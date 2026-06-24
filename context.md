@@ -42,6 +42,9 @@ To transition this architecture to handle enterprise-level traffic and provide a
 * **Multi-Language Support:** [DONE] Upgraded the SentenceTransformer to `paraphrase-multilingual-MiniLM-L12-v2`, a cross-lingual embedding model supporting 50+ languages. Detects translated plagiarism across language boundaries.
 * **Enterprise Asynchronous Queue:** [DONE] Implemented **Celery** using **PostgreSQL** as the message broker. When a user uploads a document, the API returns a response instantly, delegating the heavy multi-threaded vector inference to background worker nodes, while the React frontend seamlessly polls for the result without freezing.
 
+### 5.2 Future Roadmap: LangGraph Multi-Agent Systems
+* **Forensic Stylometry Tribunal (UP NEXT):** Implementing a LangGraph workflow powered by the Gemini API. This creates a multi-agent system (Prosecutor, Defense, Judge) that analyzes a user's historical submissions to build a "Stylometric Fingerprint" and debates whether a newly uploaded document matches the author's unique writing style.
+
 ### 5.2 Frontend & User Experience
 * **Side-by-Side Diff Viewer:** Implementing a GitHub-style split-screen interface using React. This will display the user's uploaded text alongside the source material, visually highlighting the exact overlapping vectors in red.
 * **Downloadable PDF Reports:** Allowing users to export comprehensive, mathematically-backed plagiarism reports (including confidence charts and flagged text) directly from the React frontend.

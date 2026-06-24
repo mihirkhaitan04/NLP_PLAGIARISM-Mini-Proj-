@@ -94,3 +94,29 @@ def get_result_by_id(submission_id):
     finally:
         if conn:
             conn.close()
+
+def get_recent_texts(limit=3):
+    """Fetches the raw text of the most recent submissions to build a stylistic fingerprint."""
+    conn = None
+    texts = []
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT raw_text
+            FROM submissions
+            ORDER BY uploaded_at DESC
+            LIMIT %s
+        """
+        cursor.execute(query, (limit,))
+        rows = cursor.fetchall()
+        for row in rows:
+            if row[0]:
+                texts.append(row[0])
+        cursor.close()
+    except Exception as e:
+        print(f"Error fetching recent texts: {e}")
+    finally:
+        if conn:
+            conn.close()
+    return texts

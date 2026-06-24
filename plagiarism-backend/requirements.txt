@@ -10,3 +10,6 @@ requests
 numpy
 celery
 sqlalchemy
+langchain
+langgraph
+langchain-google-genai
