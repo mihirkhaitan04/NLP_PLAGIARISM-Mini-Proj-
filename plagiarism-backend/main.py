@@ -5,6 +5,7 @@ import fitz
 
 from detect import detect_plagiarism, detect_plagiarism_with_web
 from db import save_result, get_history, get_result_by_id
+from worker import process_plagiarism_task
 
 app = FastAPI()
 
@@ -35,31 +36,20 @@ async def upload_file(
     if not text.strip():
         return {"status": "error", "message": "Could not extract text from file"}
 
-    print(f"\n[Info] Running plagiarism detection on: {file.filename} (mode: {mode})")
-
-    # Use web-enhanced or offline detection based on mode
-    if mode == "web":
-        result = detect_plagiarism_with_web(text)
-    else:
-        result = detect_plagiarism(text)
+    print(f"\n[Info] Queuing plagiarism detection on: {file.filename} (mode: {mode})")
 
     submission_id = str(uuid.uuid4())[:8]
-    result["submission_id"] = submission_id
-    result["filename"] = file.filename
-    save_result(
-        submission_id=submission_id,
-        filename=file.filename,
-        raw_text=text,
-        result_json=result
-    )
-    print(f"[Success] Done! Score: {result['overall_score']}%")
-    return {"submission_id": submission_id, "status": "done"}
+
+    # Hand off the heavy lifting to the Celery background worker
+    process_plagiarism_task.delay(submission_id, file.filename, text, mode)
+
+    return {"submission_id": submission_id, "status": "processing"}
 
 @app.get("/api/results/{submission_id}")
 async def get_results(submission_id: str):
     row = get_result_by_id(submission_id)
     if row is None:
-        return {"status": "error", "message": "Result not found"}
+        return {"status": "processing", "message": "Task is still in the queue..."}
     return row["result_json"]
 
 @app.get("/api/history")

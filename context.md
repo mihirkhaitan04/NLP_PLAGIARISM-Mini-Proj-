@@ -36,17 +36,17 @@ In addition to plagiarism detection, the system incorporates the `roberta-base-o
 ## 5. Strategic Roadmap & Future Enhancements
 To transition this architecture to handle enterprise-level traffic and provide a world-class user experience, the following upgrades are conceptually mapped into our roadmap:
 
-### 5.1 AI & NLP Enhancements (IMPLEMENTED)
+### 5.1 AI, NLP & Architecture Enhancements (IMPLEMENTED)
 * **Live Internet Scraping:** [DONE] Transitioned from a static reference database to a dynamic web-crawling heuristic using the DuckDuckGo API. The engine scrapes live content and compares vector embeddings against the public internet in real-time.
 * **AI-Generated Content Detection:** [DONE] Integrated the cloud-hosted `roberta-base-openai-detector` model via the Hugging Face Inference API, combined with burstiness scoring to calculate the probabilistic likelihood that submitted text was authored by an LLM (ChatGPT/Claude) versus a human.
 * **Multi-Language Support:** [DONE] Upgraded the SentenceTransformer to `paraphrase-multilingual-MiniLM-L12-v2`, a cross-lingual embedding model supporting 50+ languages. Detects translated plagiarism across language boundaries.
+* **Enterprise Asynchronous Queue:** [DONE] Implemented **Celery** using **PostgreSQL** as the message broker. When a user uploads a document, the API returns a response instantly, delegating the heavy multi-threaded vector inference to background worker nodes, while the React frontend seamlessly polls for the result without freezing.
 
 ### 5.2 Frontend & User Experience
 * **Side-by-Side Diff Viewer:** Implementing a GitHub-style split-screen interface using React. This will display the user's uploaded text alongside the source material, visually highlighting the exact overlapping vectors in red.
 * **Downloadable PDF Reports:** Allowing users to export comprehensive, mathematically-backed plagiarism reports (including confidence charts and flagged text) directly from the React frontend.
 * **Dynamic Data Visualization:** Utilizing libraries like `Recharts` to build an analytical dashboard, featuring radial progress bars for "Originality Score" and radar charts breaking down textual metrics.
 
-### 5.3 Architecture & Infrastructure
-* **One-Click Dockerization:** Containerizing the entire stack (Frontend, FastAPI Backend, NLP Engine, and PostgreSQL) via `docker-compose`. This ensures environment parity and allows the entire microservices architecture to be spun up with a single command.
+### 5.3 Infrastructure
+* **One-Click Dockerization:** Containerizing the entire stack (Frontend, FastAPI Backend, Celery Worker, and PostgreSQL) via `docker-compose`. This ensures environment parity and allows the entire microservices architecture to be spun up with a single command.
 * **User Authentication:** Implementing JWT-based stateless authentication. This enables multi-tenant capabilities where users can maintain private dashboards and historical submission records safely.
-* **Asynchronous Task Queue:** Implementing **Celery** with a **Redis** broker. When a user uploads a massive document, the HTTP request returns a `202 Accepted` immediately, delegating the heavy vector inference to background worker nodes while pushing real-time progress updates to the frontend via WebSockets.

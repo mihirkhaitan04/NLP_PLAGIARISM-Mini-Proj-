@@ -8,17 +8,27 @@ function Results() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let intervalId;
     const fetch = async () => {
       const data = await getResults(id);
-      setResult(data);
-      setLoading(false);
+      if (data.status === "processing") {
+        setResult({ status: "processing" });
+      } else {
+        setResult(data);
+        setLoading(false);
+        if (intervalId) clearInterval(intervalId);
+      }
     };
     fetch();
+    intervalId = setInterval(fetch, 2000);
+    return () => clearInterval(intervalId);
   }, [id]);
 
-  if (loading) return (
+  if (loading || (result && result.status === "processing")) return (
     <div style={{ textAlign: "center", marginTop: "100px", fontSize: "20px" }}>
-      Analyzing your document... please wait
+      <div style={{ marginBottom: "20px", fontSize: "40px" }}>⚙️</div>
+      Analyzing your document with AI...<br/>
+      <span style={{ fontSize: "14px", color: "#888" }}>(This may take a few moments. Your document is safely in the background queue!)</span>
     </div>
   );
 

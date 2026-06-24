@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from web_scraper import get_web_references
 from ai_detector import detect_ai_content
@@ -115,88 +116,98 @@ def detect_plagiarism(input_text):
     }
 
 
+def _process_chunk(chunk, ref_embeddings):
+    print(f"  [Search] Thread searching web for: \"{chunk[:60]}...\"")
+    chunk_emb_result = get_embeddings(chunk)
+    if chunk_emb_result is None:
+        return 0, None
+
+    chunk_embedding = chunk_emb_result[0]
+    best_score = 0
+    best_source = "local_database"
+    best_url = None
+    best_title = "Local Reference Database"
+
+    if ref_embeddings and ref_embeddings[0] is not None:
+        for ref_emb in ref_embeddings:
+            similarity = cosine_similarity(chunk_embedding, ref_emb)
+            if similarity > best_score:
+                best_score = similarity
+
+    try:
+        web_refs = get_web_references(chunk, max_results=3)
+        for web_ref in web_refs:
+            web_text = web_ref["text"]
+            web_sentences = [s.strip() for s in web_text.split('.') if len(s.strip()) > 15][:15]
+            if web_sentences:
+                web_embeddings = get_embeddings(web_sentences)
+                if web_embeddings:
+                    for web_emb in web_embeddings:
+                        similarity = cosine_similarity(chunk_embedding, web_emb)
+                        if similarity > best_score:
+                            best_score = similarity
+                            best_source = "web"
+                            best_url = web_ref["url"]
+                            best_title = web_ref["title"]
+    except Exception as e:
+        print(f"  [Warn] Web search failed for this chunk: {e}")
+
+    flagged = None
+    if best_score > 0.5:
+        flagged = {
+            "text": chunk,
+            "type": "paraphrased",
+            "confidence": round(best_score, 2),
+            "source": best_source,
+            "source_url": best_url,
+            "source_title": best_title
+        }
+    return best_score, flagged
+
+
 def detect_plagiarism_with_web(input_text):
     """
-    Enhanced detection that searches the live internet for each sentence.
-    Combines web-scraped references with the local reference database.
-    Uses multilingual model for cross-language plagiarism detection via HF API.
+    Enhanced detection that searches the live internet concurrently.
+    Uses chunking and ThreadPoolExecutor for speed.
     """
-    sentences = [s.strip() for s in input_text.split('.') if s.strip()]
-    sentences = [s for s in sentences if len(s) >= 10]
+    raw_sentences = [s.strip() for s in input_text.split('.') if s.strip()]
+    raw_sentences = [s for s in raw_sentences if len(s) >= 10]
 
-    if not sentences:
+    # Chunking: Group every 2 sentences to halve the API requests
+    chunks = []
+    for i in range(0, len(raw_sentences), 2):
+        chunk = ". ".join(raw_sentences[i:i+2])
+        chunks.append(chunk)
+
+    if not chunks:
         return {"overall_score": 0, "ai_generated_score": 0, "paraphrased_score": 0, "ai_detection_details": {}, "status": "done", "flagged_sections": []}
 
     flagged_sections = []
     total_score = 0
 
-    # Pre-compute reference embeddings in one batch
     ref_embeddings = get_embeddings(REFERENCE_TEXTS)
     if ref_embeddings is None:
         ref_embeddings = [None] * len(REFERENCE_TEXTS)
 
-    for sentence in sentences:
-        print(f"  [Search] Searching web for: \"{sentence[:60]}...\"")
+    # Use ThreadPoolExecutor for concurrent searching
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_process_chunk, chunk, ref_embeddings): chunk for chunk in chunks}
+        
+        for future in as_completed(futures):
+            chunk = futures[future]
+            try:
+                score, flagged = future.result()
+                total_score += score
+                
+                if flagged:
+                    flagged["start"] = input_text.find(chunk)
+                    flagged["end"] = input_text.find(chunk) + len(chunk)
+                    flagged_sections.append(flagged)
+            except Exception as e:
+                print(f"[Warn] Thread error on chunk: {e}")
 
-        # Get embedding for this sentence
-        sentence_emb_result = get_embeddings(sentence)
-        if sentence_emb_result is None:
-            continue
-        sentence_embedding = sentence_emb_result[0]
+    overall_score = round((total_score / len(chunks)) * 100, 1) if chunks else 0
 
-        best_score = 0
-        best_source = "local_database"
-        best_url = None
-        best_title = "Local Reference Database"
-
-        # --- Phase 1: Compare against local reference database ---
-        if ref_embeddings and ref_embeddings[0] is not None:
-            for ref_emb in ref_embeddings:
-                similarity = cosine_similarity(sentence_embedding, ref_emb)
-                if similarity > best_score:
-                    best_score = similarity
-
-        # --- Phase 2: Compare against live web results ---
-        try:
-            web_refs = get_web_references(sentence, max_results=3)
-            for web_ref in web_refs:
-                # Split the scraped web text into chunks for comparison
-                web_text = web_ref["text"]
-                web_sentences = [s.strip() for s in web_text.split('.') if len(s.strip()) > 15]
-                web_sentences = web_sentences[:20]
-
-                if web_sentences:
-                    # Batch embed all web sentences at once for efficiency
-                    web_embeddings = get_embeddings(web_sentences)
-                    if web_embeddings:
-                        for web_emb in web_embeddings:
-                            similarity = cosine_similarity(sentence_embedding, web_emb)
-                            if similarity > best_score:
-                                best_score = similarity
-                                best_source = "web"
-                                best_url = web_ref["url"]
-                                best_title = web_ref["title"]
-        except Exception as e:
-            print(f"  [Warn] Web search failed for this sentence, using local only: {e}")
-
-        total_score += best_score
-
-        # If similarity is high enough, flag it
-        if best_score > 0.5:
-            flagged_sections.append({
-                "start": input_text.find(sentence),
-                "end": input_text.find(sentence) + len(sentence),
-                "text": sentence,
-                "type": "paraphrased",
-                "confidence": round(best_score, 2),
-                "source": best_source,
-                "source_url": best_url,
-                "source_title": best_title
-            })
-
-    overall_score = round((total_score / len(sentences)) * 100, 1) if sentences else 0
-
-    # --- AI Content Detection ---
     ai_result = detect_ai_content(input_text)
     ai_generated_score = ai_result["ai_probability"]
 
