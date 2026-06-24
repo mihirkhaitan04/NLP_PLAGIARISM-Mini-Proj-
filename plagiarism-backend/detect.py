@@ -1,12 +1,19 @@
-from sentence_transformers import SentenceTransformer, util
+import os
+import numpy as np
+import requests
+from dotenv import load_dotenv
 from web_scraper import get_web_references
 from ai_detector import detect_ai_content
 
-# Load the multilingual AI model (supports 50+ languages including Hindi, Spanish, French, etc.)
-# This replaces the English-only 'all-MiniLM-L6-v2' with a cross-lingual model
-print("[Info] Loading multilingual SentenceTransformer model...")
-model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-print("[Info] Multilingual model loaded successfully.")
+load_dotenv()
+
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+
+# Hugging Face hosted multilingual embedding model (supports 50+ languages)
+EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBEDDING_URL = f"https://router.huggingface.co/hf-inference/models/{EMBEDDING_MODEL}/pipeline/feature-extraction"
+
+HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 
 # This is your local reference database - texts to compare against (offline fallback)
 REFERENCE_TEXTS = [
@@ -18,20 +25,63 @@ REFERENCE_TEXTS = [
 ]
 
 
+def get_embeddings(texts):
+    """
+    Get embeddings for a list of texts using the Hugging Face Inference API.
+    Returns a list of embedding vectors (each is a list of floats).
+    """
+    if isinstance(texts, str):
+        texts = [texts]
+
+    payload = {
+        "inputs": texts,
+        "options": {"wait_for_model": True}
+    }
+    try:
+        response = requests.post(EMBEDDING_URL, headers=HEADERS, json=payload, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"[Warn] Embedding API call failed: {e}")
+        return None
+
+
+def cosine_similarity(vec_a, vec_b):
+    """Calculate cosine similarity between two vectors using numpy."""
+    a = np.array(vec_a)
+    b = np.array(vec_b)
+    dot = np.dot(a, b)
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return float(dot / (norm_a * norm_b))
+
+
 def detect_plagiarism(input_text):
     """Original offline-only detection (kept as fallback)."""
     sentences = [s.strip() for s in input_text.split('.') if s.strip()]
+    if not sentences:
+        return {"overall_score": 0, "ai_generated_score": 0, "paraphrased_score": 0, "ai_detection_details": {}, "status": "done", "flagged_sections": []}
 
     flagged_sections = []
     total_score = 0
 
-    for sentence in sentences:
-        sentence_embedding = model.encode(sentence, convert_to_tensor=True)
+    # Get embeddings for all sentences + all references in one batch call
+    all_texts = sentences + REFERENCE_TEXTS
+    all_embeddings = get_embeddings(all_texts)
 
+    if all_embeddings is None or len(all_embeddings) != len(all_texts):
+        # Fallback: return empty results if API fails
+        return {"overall_score": 0, "ai_generated_score": 0, "paraphrased_score": 0, "ai_detection_details": {}, "status": "error", "flagged_sections": []}
+
+    sentence_embeddings = all_embeddings[:len(sentences)]
+    ref_embeddings = all_embeddings[len(sentences):]
+
+    for i, sentence in enumerate(sentences):
         best_score = 0
-        for ref in REFERENCE_TEXTS:
-            ref_embedding = model.encode(ref, convert_to_tensor=True)
-            similarity = util.cos_sim(sentence_embedding, ref_embedding).item()
+        for j in range(len(REFERENCE_TEXTS)):
+            similarity = cosine_similarity(sentence_embeddings[i], ref_embeddings[j])
             if similarity > best_score:
                 best_score = similarity
 
@@ -69,19 +119,30 @@ def detect_plagiarism_with_web(input_text):
     """
     Enhanced detection that searches the live internet for each sentence.
     Combines web-scraped references with the local reference database.
-    Uses multilingual model for cross-language plagiarism detection.
+    Uses multilingual model for cross-language plagiarism detection via HF API.
     """
     sentences = [s.strip() for s in input_text.split('.') if s.strip()]
+    sentences = [s for s in sentences if len(s) >= 10]
+
+    if not sentences:
+        return {"overall_score": 0, "ai_generated_score": 0, "paraphrased_score": 0, "ai_detection_details": {}, "status": "done", "flagged_sections": []}
 
     flagged_sections = []
     total_score = 0
 
-    for sentence in sentences:
-        if len(sentence) < 10:
-            continue
+    # Pre-compute reference embeddings in one batch
+    ref_embeddings = get_embeddings(REFERENCE_TEXTS)
+    if ref_embeddings is None:
+        ref_embeddings = [None] * len(REFERENCE_TEXTS)
 
+    for sentence in sentences:
         print(f"  [Search] Searching web for: \"{sentence[:60]}...\"")
-        sentence_embedding = model.encode(sentence, convert_to_tensor=True)
+
+        # Get embedding for this sentence
+        sentence_emb_result = get_embeddings(sentence)
+        if sentence_emb_result is None:
+            continue
+        sentence_embedding = sentence_emb_result[0]
 
         best_score = 0
         best_source = "local_database"
@@ -89,11 +150,11 @@ def detect_plagiarism_with_web(input_text):
         best_title = "Local Reference Database"
 
         # --- Phase 1: Compare against local reference database ---
-        for ref in REFERENCE_TEXTS:
-            ref_embedding = model.encode(ref, convert_to_tensor=True)
-            similarity = util.cos_sim(sentence_embedding, ref_embedding).item()
-            if similarity > best_score:
-                best_score = similarity
+        if ref_embeddings and ref_embeddings[0] is not None:
+            for ref_emb in ref_embeddings:
+                similarity = cosine_similarity(sentence_embedding, ref_emb)
+                if similarity > best_score:
+                    best_score = similarity
 
         # --- Phase 2: Compare against live web results ---
         try:
@@ -102,16 +163,19 @@ def detect_plagiarism_with_web(input_text):
                 # Split the scraped web text into chunks for comparison
                 web_text = web_ref["text"]
                 web_sentences = [s.strip() for s in web_text.split('.') if len(s.strip()) > 15]
+                web_sentences = web_sentences[:20]
 
-                for web_sentence in web_sentences[:20]:
-                    web_embedding = model.encode(web_sentence, convert_to_tensor=True)
-                    similarity = util.cos_sim(sentence_embedding, web_embedding).item()
-
-                    if similarity > best_score:
-                        best_score = similarity
-                        best_source = "web"
-                        best_url = web_ref["url"]
-                        best_title = web_ref["title"]
+                if web_sentences:
+                    # Batch embed all web sentences at once for efficiency
+                    web_embeddings = get_embeddings(web_sentences)
+                    if web_embeddings:
+                        for web_emb in web_embeddings:
+                            similarity = cosine_similarity(sentence_embedding, web_emb)
+                            if similarity > best_score:
+                                best_score = similarity
+                                best_source = "web"
+                                best_url = web_ref["url"]
+                                best_title = web_ref["title"]
         except Exception as e:
             print(f"  [Warn] Web search failed for this sentence, using local only: {e}")
 

@@ -4,7 +4,7 @@ Hello there! 👋
 
 I am excited to share my NLP Plagiarism Detector project, which analyzes documents using advanced Natural Language Processing to detect copied content and paraphrasing. 
 
-But it doesn't stop at simple text matching. This project is a complete, end-to-end full-stack application that incorporates modern frontend design (React + Tailwind), high-performance API routing (FastAPI), and state-of-the-art AI embeddings (SentenceTransformers).
+But it doesn't stop at simple text matching. This project is a complete, end-to-end full-stack application that incorporates modern frontend design (React + Tailwind), high-performance API routing (FastAPI), and cloud-hosted AI inference via the Hugging Face Inference API — no heavy local GPU needed.
 
 Think of it as: A sophisticated document analysis suite with an AI-powered detection engine, persistent database storage, and a sleek user interface.
 
@@ -13,9 +13,9 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 
 **1. Advanced AI Detection (Pillar 1)**
 * **Live Internet Scraping:** Dynamically searches the web via DuckDuckGo and scrapes live articles to cross-reference against the entire public internet, not just a static database.
-* **AI-Generated Content Detection:** Uses GPT-2 perplexity analysis combined with burstiness scoring to calculate the probability that text was written by ChatGPT, Claude, or other LLMs vs. a human.
+* **AI-Generated Content Detection:** Uses the cloud-hosted RoBERTa OpenAI Detector model combined with burstiness scoring to calculate the probability that text was written by ChatGPT, Claude, or other LLMs vs. a human.
 * **Multi-Language Support:** Powered by the `paraphrase-multilingual-MiniLM-L12-v2` model, supporting 50+ languages. Detects cross-lingual plagiarism (e.g., a Spanish article translated to English).
-* **Semantic Matching:** Uses SentenceTransformer embeddings to understand the *meaning* of text, not just exact word matches.
+* **Semantic Matching:** Uses cloud-hosted SentenceTransformer embeddings via the Hugging Face Inference API to understand the *meaning* of text, not just exact word matches.
 * **Paraphrase Detection:** Effectively catches content that has been rewritten or reworded to hide plagiarism.
 * **Confidence Scoring:** Provides percentage scores indicating the likelihood of plagiarized and paraphrased content.
 
@@ -26,7 +26,7 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 
 **3. Modern Frontend Dashboard (Pillar 3)**
 * **React & Vite:** A lightning-fast, component-based user interface for seamless interaction.
-* **AI Content Analysis Panel:** Displays GPT-2 perplexity score, burstiness metric, and a human-readable verdict ("Likely AI" / "Likely Human").
+* **AI Content Analysis Panel:** Displays the RoBERTa AI detection score, burstiness metric, and a human-readable verdict ("Likely AI" / "Likely Human").
 * **Scan Modes:** Allows users to easily toggle between a "Deep Web Scan" and a "Fast Local Scan".
 * **Source Attribution:** Dynamically renders clickable links directly to the plagiarized source website.
 * **Tailwind CSS:** Beautiful, responsive design with support for modern UI paradigms.
@@ -36,24 +36,32 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 ## 🛠️ Usage
 Here’s how to get started with the NLP Plagiarism Detector. 👇
 
-**Step 1: Setup the Database**
-Ensure you have PostgreSQL installed and running. Create a `.env` file in the `plagiarism-backend` directory with your database credentials:
+**Step 1: Get Your Free Hugging Face API Token**
+1. Create a free account at [huggingface.co](https://huggingface.co)
+2. Go to Settings → Access Tokens → Create a **Read** token
+3. Copy the token (it starts with `hf_...`)
+
+**Step 2: Setup Environment Variables**
+Create a `.env` file in the `plagiarism-backend` directory (see `.env.example` for reference):
 ```env
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=plagiarism_db
 DB_USER=postgres
 DB_PASSWORD=yourpassword
+
+# Hugging Face Inference API
+HF_API_TOKEN=hf_your_token_here
 ```
 
-**Step 2: Start the Backend API & NLP Engine**
+**Step 3: Start the Backend API & NLP Engine**
 Navigate to the backend directory, install the Python dependencies, and start the FastAPI server.
 ```bash
 cd plagiarism-backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
-*(Note: The system will automatically download the SentenceTransformer multilingual model and the GPT-2 model upon its first run).*
+*(Note: All AI inference runs via the Hugging Face cloud API — no local GPU or heavy model downloads required!)*
 
 **Step 3: Start the Frontend Dashboard**
 Navigate to the frontend directory, install the Node packages, and start the Vite development server.
@@ -71,7 +79,7 @@ Here’s how the project is organized for maximum clarity and separation of conc
 
 * **`plagiarism-frontend/`**: The React-based user interface. Contains components for file uploads, score display, and submission history.
 * **`plagiarism-backend/`**: The FastAPI server. Handles PDF extraction, API endpoints (`main.py`), and PostgreSQL database interactions (`db.py`).
-* **`plagiarism-nlp/`**: The core AI engine. Contains `detect.py` which houses the SentenceTransformer logic and reference database.
+* **`plagiarism-nlp/`**: The standalone NLP microservice (Flask). Contains `detect.py` (embedding + plagiarism logic), `ai_detector.py` (AI content detection), and `web_scraper.py` (live internet scraping).
 
 ---
 

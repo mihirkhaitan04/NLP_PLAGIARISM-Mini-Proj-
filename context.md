@@ -11,16 +11,17 @@ The application adopts a decoupled, service-oriented architecture to separate he
 * **Client Layer (React + Vite):** A lightweight, component-driven SPA (Single Page Application). Vite was chosen over Webpack for its native ES-module hot-module replacement (HMR), reducing build times to milliseconds. Tailwind CSS ensures zero-runtime styling overhead.
 * **API Gateway & Routing (FastAPI):** FastAPI serves as the central orchestrator. Built on Starlette and Pydantic, it provides an ASGI (Asynchronous Server Gateway Interface) foundation. This is critical for handling concurrent I/O bottlenecks—such as reading multi-megabyte PDF streams into memory—without blocking the main thread.
 * **Database Persistence (PostgreSQL):** PostgreSQL was selected for its robust ACID compliance and superior JSONB support, allowing dynamic, unstructured AI analysis results to be queried efficiently alongside structured metadata (timestamps, UUIDs).
-* **AI Inference Engine (Flask / SentenceTransformers):** The NLP logic is isolated to prevent its heavy CPU/GPU memory footprint from interfering with the API layer's responsiveness.
+* **AI Inference Layer (Hugging Face Inference API):** Instead of loading multi-gigabyte models locally, all AI computation is offloaded to the Hugging Face cloud via their free Inference API. This eliminates the need for GPU hardware and makes the system deployable on any lightweight server.
 
 ## 3. The Algorithmic Core: Semantic Embeddings
-The core of the detection engine utilizes the `paraphrase-multilingual-MiniLM-L12-v2` model from the `SentenceTransformers` library. This multilingual model supports 50+ languages, enabling cross-lingual plagiarism detection.
+The core of the detection engine utilizes the `paraphrase-multilingual-MiniLM-L12-v2` model hosted on the Hugging Face Inference API. This multilingual model supports 50+ languages, enabling cross-lingual plagiarism detection. All embedding computations are performed server-side on Hugging Face's infrastructure.
 
 ### Why Multilingual MiniLM?
 While larger models (like BERT-base or RoBERTa) offer marginally higher accuracy, the multilingual `MiniLM` strikes an elite balance between computational efficiency and semantic density. It projects sentences from any of 50+ languages into a shared 384-dimensional dense vector space, meaning a sentence in Spanish and its English translation will have nearly identical vectors.
 
 ### AI-Generated Content Detection
-In addition to plagiarism detection, the system incorporates a secondary GPT-2-based perplexity analyzer (`ai_detector.py`). This module measures how "predictable" the submitted text is to a language model. AI-generated text tends to have significantly lower perplexity than human writing. This is combined with a burstiness metric (variation in sentence lengths) to produce a composite AI probability score.
+In addition to plagiarism detection, the system incorporates the `roberta-base-openai-detector` model hosted on the Hugging Face Inference API (`ai_detector.py`). This RoBERTa-based classifier was specifically trained by OpenAI to distinguish between human-written and AI-generated text. Its classification score is combined with a burstiness metric (variation in sentence lengths) to produce a composite AI probability score.
+
 ### The Mathematics of Detection
 1. **Tokenization & Pooling:** Raw text is tokenized, passed through the transformer layers, and mean-pooled to generate a single dense vector representation of the sentence.
 2. **Cosine Similarity:** The system computes the cosine of the angle between the input vector ($\vec{A}$) and reference vectors ($\vec{B}$). 
@@ -29,14 +30,15 @@ In addition to plagiarism detection, the system incorporates a secondary GPT-2-b
 
 ## 4. Performance Considerations
 * **Memory Management:** PyMuPDF (`fitz`) is utilized for PDF extraction due to its C-level bindings, making it significantly faster and more memory-efficient than pure-Python alternatives like `PyPDF2`.
-* **Stateless Processing:** The API routes are stateless. The AI model is loaded into memory exactly once at application startup (singleton pattern) to eliminate cold-start latency during inference requests.
+* **Cloud-First AI:** All AI inference (embeddings, AI detection) is handled via the Hugging Face Inference API, eliminating the need for local GPU/CPU-intensive model loading. The backend's total dependency footprint is under 50MB (vs ~2GB when running models locally).
+* **Stateless Processing:** The API routes are stateless. Cosine similarity is computed locally using lightweight `numpy` operations, while the heavy embedding generation is delegated to the cloud.
 
 ## 5. Strategic Roadmap & Future Enhancements
 To transition this architecture to handle enterprise-level traffic and provide a world-class user experience, the following upgrades are conceptually mapped into our roadmap:
 
 ### 5.1 AI & NLP Enhancements (IMPLEMENTED)
 * **Live Internet Scraping:** [DONE] Transitioned from a static reference database to a dynamic web-crawling heuristic using the DuckDuckGo API. The engine scrapes live content and compares vector embeddings against the public internet in real-time.
-* **AI-Generated Content Detection:** [DONE] Integrated a GPT-2 perplexity analyzer combined with burstiness scoring to calculate the probabilistic likelihood that submitted text was authored by an LLM (ChatGPT/Claude) versus a human.
+* **AI-Generated Content Detection:** [DONE] Integrated the cloud-hosted `roberta-base-openai-detector` model via the Hugging Face Inference API, combined with burstiness scoring to calculate the probabilistic likelihood that submitted text was authored by an LLM (ChatGPT/Claude) versus a human.
 * **Multi-Language Support:** [DONE] Upgraded the SentenceTransformer to `paraphrase-multilingual-MiniLM-L12-v2`, a cross-lingual embedding model supporting 50+ languages. Detects translated plagiarism across language boundaries.
 
 ### 5.2 Frontend & User Experience

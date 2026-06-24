@@ -2,11 +2,9 @@ fastapi
 uvicorn
 python-multipart
 pymupdf
-sentence-transformers
 psycopg2-binary
 python-dotenv
 ddgs
 beautifulsoup4
 requests
-transformers
-torch
+numpy
