@@ -14,11 +14,13 @@ The application adopts a decoupled, service-oriented architecture to separate he
 * **AI Inference Engine (Flask / SentenceTransformers):** The NLP logic is isolated to prevent its heavy CPU/GPU memory footprint from interfering with the API layer's responsiveness.
 
 ## 3. The Algorithmic Core: Semantic Embeddings
-The core of the detection engine utilizes the `all-MiniLM-L6-v2` model from the `SentenceTransformers` library. 
+The core of the detection engine utilizes the `paraphrase-multilingual-MiniLM-L12-v2` model from the `SentenceTransformers` library. This multilingual model supports 50+ languages, enabling cross-lingual plagiarism detection.
 
-### Why MiniLM?
-While larger models (like BERT-base or RoBERTa) offer marginally higher accuracy, `MiniLM` strikes an elite balance between computational efficiency and semantic density. It projects sentences into a 384-dimensional dense vector space. 
+### Why Multilingual MiniLM?
+While larger models (like BERT-base or RoBERTa) offer marginally higher accuracy, the multilingual `MiniLM` strikes an elite balance between computational efficiency and semantic density. It projects sentences from any of 50+ languages into a shared 384-dimensional dense vector space, meaning a sentence in Spanish and its English translation will have nearly identical vectors.
 
+### AI-Generated Content Detection
+In addition to plagiarism detection, the system incorporates a secondary GPT-2-based perplexity analyzer (`ai_detector.py`). This module measures how "predictable" the submitted text is to a language model. AI-generated text tends to have significantly lower perplexity than human writing. This is combined with a burstiness metric (variation in sentence lengths) to produce a composite AI probability score.
 ### The Mathematics of Detection
 1. **Tokenization & Pooling:** Raw text is tokenized, passed through the transformer layers, and mean-pooled to generate a single dense vector representation of the sentence.
 2. **Cosine Similarity:** The system computes the cosine of the angle between the input vector ($\vec{A}$) and reference vectors ($\vec{B}$). 
@@ -32,10 +34,10 @@ While larger models (like BERT-base or RoBERTa) offer marginally higher accuracy
 ## 5. Strategic Roadmap & Future Enhancements
 To transition this architecture to handle enterprise-level traffic and provide a world-class user experience, the following upgrades are conceptually mapped into our roadmap:
 
-### 5.1 AI & NLP Enhancements
-* **Live Internet Scraping:** Transitioning from a static reference database to a dynamic web-crawling heuristic. The engine will query search engines (e.g., DuckDuckGo API) in real-time to scrape live content and compare vector embeddings against the entire public internet.
-* **AI-Generated Content Detection:** Integrating secondary classification models (e.g., RoBERTa) to calculate the probabilistic likelihood that the submitted text was authored by an LLM (ChatGPT/Claude) versus a human.
-* **Multi-Language Support:** Upgrading the `SentenceTransformer` to a cross-lingual embedding model to detect translated plagiarism (e.g., translating a Spanish academic paper to English and submitting it as original work).
+### 5.1 AI & NLP Enhancements (IMPLEMENTED)
+* **Live Internet Scraping:** [DONE] Transitioned from a static reference database to a dynamic web-crawling heuristic using the DuckDuckGo API. The engine scrapes live content and compares vector embeddings against the public internet in real-time.
+* **AI-Generated Content Detection:** [DONE] Integrated a GPT-2 perplexity analyzer combined with burstiness scoring to calculate the probabilistic likelihood that submitted text was authored by an LLM (ChatGPT/Claude) versus a human.
+* **Multi-Language Support:** [DONE] Upgraded the SentenceTransformer to `paraphrase-multilingual-MiniLM-L12-v2`, a cross-lingual embedding model supporting 50+ languages. Detects translated plagiarism across language boundaries.
 
 ### 5.2 Frontend & User Experience
 * **Side-by-Side Diff Viewer:** Implementing a GitHub-style split-screen interface using React. This will display the user's uploaded text alongside the source material, visually highlighting the exact overlapping vectors in red.

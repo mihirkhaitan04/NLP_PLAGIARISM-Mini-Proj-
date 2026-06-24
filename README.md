@@ -13,7 +13,9 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 
 **1. Advanced AI Detection (Pillar 1)**
 * **Live Internet Scraping:** Dynamically searches the web via DuckDuckGo and scrapes live articles to cross-reference against the entire public internet, not just a static database.
-* **Semantic Matching:** Uses the `all-MiniLM-L6-v2` Sentence Transformer model to understand the *meaning* of text, not just exact word matches.
+* **AI-Generated Content Detection:** Uses GPT-2 perplexity analysis combined with burstiness scoring to calculate the probability that text was written by ChatGPT, Claude, or other LLMs vs. a human.
+* **Multi-Language Support:** Powered by the `paraphrase-multilingual-MiniLM-L12-v2` model, supporting 50+ languages. Detects cross-lingual plagiarism (e.g., a Spanish article translated to English).
+* **Semantic Matching:** Uses SentenceTransformer embeddings to understand the *meaning* of text, not just exact word matches.
 * **Paraphrase Detection:** Effectively catches content that has been rewritten or reworded to hide plagiarism.
 * **Confidence Scoring:** Provides percentage scores indicating the likelihood of plagiarized and paraphrased content.
 
@@ -24,6 +26,7 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 
 **3. Modern Frontend Dashboard (Pillar 3)**
 * **React & Vite:** A lightning-fast, component-based user interface for seamless interaction.
+* **AI Content Analysis Panel:** Displays GPT-2 perplexity score, burstiness metric, and a human-readable verdict ("Likely AI" / "Likely Human").
 * **Scan Modes:** Allows users to easily toggle between a "Deep Web Scan" and a "Fast Local Scan".
 * **Source Attribution:** Dynamically renders clickable links directly to the plagiarized source website.
 * **Tailwind CSS:** Beautiful, responsive design with support for modern UI paradigms.
@@ -50,7 +53,7 @@ cd plagiarism-backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
-*(Note: The system will automatically download the SentenceTransformer AI model upon its first run).*
+*(Note: The system will automatically download the SentenceTransformer multilingual model and the GPT-2 model upon its first run).*
 
 **Step 3: Start the Frontend Dashboard**
 Navigate to the frontend directory, install the Node packages, and start the Vite development server.

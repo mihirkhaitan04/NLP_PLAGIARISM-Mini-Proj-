@@ -4,3 +4,5 @@ sentence-transformers
 ddgs
 beautifulsoup4
 requests
+transformers
+torch

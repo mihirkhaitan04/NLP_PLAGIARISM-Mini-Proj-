@@ -18,9 +18,21 @@ function Results() {
 
   if (loading) return (
     <div style={{ textAlign: "center", marginTop: "100px", fontSize: "20px" }}>
-      Analyzing your document... please wait ⏳
+      Analyzing your document... please wait
     </div>
   );
+
+  // Determine AI verdict color and label
+  const aiDetails = result.ai_detection_details || {};
+  const getVerdictStyle = (verdict) => {
+    switch (verdict) {
+      case "likely_ai": return { color: "#e94560", label: "Likely AI-Generated" };
+      case "mixed": return { color: "#f5a623", label: "Mixed / Uncertain" };
+      case "likely_human": return { color: "#2ecc71", label: "Likely Human-Written" };
+      default: return { color: "#888", label: "Unknown" };
+    }
+  };
+  const verdictStyle = getVerdictStyle(aiDetails.verdict);
 
   return (
     <div style={{ fontFamily: "Arial", maxWidth: "800px", margin: "40px auto", padding: "0 20px" }}>
@@ -45,10 +57,42 @@ function Results() {
         </div>
       </div>
 
+      {/* AI Detection Details Panel */}
+      {aiDetails.verdict && (
+        <div style={{
+          marginTop: "25px", padding: "20px", borderRadius: "12px",
+          background: "#f8f9fa", border: "1px solid #e0e0e0"
+        }}>
+          <h3 style={{ margin: "0 0 12px 0", color: "#1a1a2e" }}>AI Content Analysis</h3>
+          <div style={{ display: "flex", gap: "30px", flexWrap: "wrap" }}>
+            <div>
+              <span style={{ color: "#888", fontSize: "13px" }}>Verdict</span>
+              <div style={{ fontWeight: "bold", fontSize: "16px", color: verdictStyle.color, marginTop: "2px" }}>
+                {verdictStyle.label}
+              </div>
+            </div>
+            {aiDetails.perplexity !== null && (
+              <div>
+                <span style={{ color: "#888", fontSize: "13px" }}>Perplexity (GPT-2)</span>
+                <div style={{ fontWeight: "bold", fontSize: "16px", color: "#333", marginTop: "2px" }}>
+                  {aiDetails.perplexity}
+                </div>
+              </div>
+            )}
+            <div>
+              <span style={{ color: "#888", fontSize: "13px" }}>Burstiness</span>
+              <div style={{ fontWeight: "bold", fontSize: "16px", color: "#333", marginTop: "2px" }}>
+                {aiDetails.burstiness} {aiDetails.burstiness > 0.5 ? "(Human-like)" : "(AI-like)"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Flagged Sections */}
       <h2 style={{ marginTop: "40px", color: "#1a1a2e" }}>Flagged Sections</h2>
       {result.flagged_sections.length === 0 && (
-        <p style={{ color: "#555", fontStyle: "italic" }}>No plagiarism detected. Your document looks original! ✅</p>
+        <p style={{ color: "#555", fontStyle: "italic" }}>No plagiarism detected. Your document looks original!</p>
       )}
       {result.flagged_sections.map((section, index) => (
         <div key={index} style={{
@@ -60,7 +104,7 @@ function Results() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontWeight: "bold", color: section.source === "web" ? "#e94560" : "#f5a623" }}>
-                {section.type === "ai_generated" ? "🤖 AI Generated" : "📝 Paraphrased"}
+                {section.type === "ai_generated" ? "AI Generated" : "Paraphrased"}
               </span>
               {/* Source Badge */}
               <span style={{
@@ -68,7 +112,7 @@ function Results() {
                 fontWeight: "bold", color: "white",
                 background: section.source === "web" ? "#e94560" : "#f5a623"
               }}>
-                {section.source === "web" ? "🌐 Web Source" : "📚 Local DB"}
+                {section.source === "web" ? "Web Source" : "Local DB"}
               </span>
             </div>
             <span style={{ color: "#888", fontSize: "14px" }}>

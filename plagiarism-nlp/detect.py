@@ -1,8 +1,12 @@
 from sentence_transformers import SentenceTransformer, util
 from web_scraper import get_web_references
+from ai_detector import detect_ai_content
 
-# Load the AI model (downloads once, then uses local copy)
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# Load the multilingual AI model (supports 50+ languages including Hindi, Spanish, French, etc.)
+# This replaces the English-only 'all-MiniLM-L6-v2' with a cross-lingual model
+print("[Info] Loading multilingual SentenceTransformer model...")
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+print("[Info] Multilingual model loaded successfully.")
 
 # This is your local reference database - texts to compare against (offline fallback)
 REFERENCE_TEXTS = [
@@ -47,10 +51,15 @@ def detect_plagiarism(input_text):
 
     overall_score = round((total_score / len(sentences)) * 100, 1) if sentences else 0
 
+    # --- AI Content Detection ---
+    ai_result = detect_ai_content(input_text)
+    ai_generated_score = ai_result["ai_probability"]
+
     return {
         "overall_score": overall_score,
-        "ai_generated_score": round(overall_score * 0.6, 1),
+        "ai_generated_score": ai_generated_score,
         "paraphrased_score": round(overall_score * 0.4, 1),
+        "ai_detection_details": ai_result,
         "status": "done",
         "flagged_sections": flagged_sections
     }
@@ -60,6 +69,7 @@ def detect_plagiarism_with_web(input_text):
     """
     Enhanced detection that searches the live internet for each sentence.
     Combines web-scraped references with the local reference database.
+    Uses multilingual model for cross-language plagiarism detection.
     """
     sentences = [s.strip() for s in input_text.split('.') if s.strip()]
 
@@ -89,6 +99,7 @@ def detect_plagiarism_with_web(input_text):
         try:
             web_refs = get_web_references(sentence, max_results=3)
             for web_ref in web_refs:
+                # Split the scraped web text into chunks for comparison
                 web_text = web_ref["text"]
                 web_sentences = [s.strip() for s in web_text.split('.') if len(s.strip()) > 15]
 
@@ -106,6 +117,7 @@ def detect_plagiarism_with_web(input_text):
 
         total_score += best_score
 
+        # If similarity is high enough, flag it
         if best_score > 0.5:
             flagged_sections.append({
                 "start": input_text.find(sentence),
@@ -120,10 +132,15 @@ def detect_plagiarism_with_web(input_text):
 
     overall_score = round((total_score / len(sentences)) * 100, 1) if sentences else 0
 
+    # --- AI Content Detection ---
+    ai_result = detect_ai_content(input_text)
+    ai_generated_score = ai_result["ai_probability"]
+
     return {
         "overall_score": overall_score,
-        "ai_generated_score": round(overall_score * 0.6, 1),
+        "ai_generated_score": ai_generated_score,
         "paraphrased_score": round(overall_score * 0.4, 1),
+        "ai_detection_details": ai_result,
         "status": "done",
         "flagged_sections": flagged_sections
     }
