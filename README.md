@@ -20,7 +20,7 @@ This tool is designed to automate the process of analyzing text and PDFs for pla
 * **Confidence Scoring:** Provides percentage scores indicating the likelihood of plagiarized and paraphrased content.
 
 **2. High-Performance Enterprise Backend (Pillar 2)**
-* **Asynchronous Message Broker:** Uses Celery and PostgreSQL to implement a robust background task queue. This prevents API blocking and keeps the application lightning-fast for startup-level traffic. *(Note: The architecture is strictly decoupled, meaning PostgreSQL can be instantly swapped for a Redis broker to scale to 10,000+ daily enterprise users without changing the core application logic).*
+* **Background Task Queue:** Uses Celery and PostgreSQL to process heavy AI tasks in the background. This keeps the website fast and responsive for hundreds of daily users. *(Note: If the app ever grows to 10,000+ daily users, we can easily swap PostgreSQL for Redis to handle the massive traffic without rewriting any code).*
 * **FastAPI Architecture:** Ensures lightning-fast 0.1s API responses by instantly offloading heavy AI processing to the Celery queue.
 * **Multi-threaded Web Scraping:** The Celery background worker utilizes Python's `ThreadPoolExecutor` to search multiple internet sources concurrently, slashing deep-web scan times by 80%.
 * **PostgreSQL Integration:** Acts as both the message broker for the asynchronous task queue and the secure persistent storage for analysis results.
